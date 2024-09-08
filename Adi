@@ -3,11 +3,6 @@ local animations = {
     idleAlt = "rbxassetid://18537371272", -- Alternate idle animation
     walk = "rbxassetid://18537392113",    -- Walk animation
     run = "rbxassetid://18537384940",     -- Run animation
-    jump = "rbxassetid://18537380791",    -- Jump animation
-    fall = "rbxassetid://18537367238",    -- Fall animation
-    swim = "rbxassetid://18537389531",    -- Swim animation
-    swimIdle = "rbxassetid://18537387180",-- Swim idle animation
-    climb = "rbxassetid://18537378510"    -- Climb animation
 }
 
 -- Function to replace the default animations
@@ -54,27 +49,6 @@ local function ensureAnimationsLoop()
     end)
 end
 
--- Additional function to debug swimIdle animation
-local function debugSwimIdle()
-    local player = game.Players.LocalPlayer
-    local character = player.Character or player.CharacterAdded:Wait()
-    local animateScript = character:WaitForChild("Animate")
-    local swimIdle = animateScript:FindFirstChild("swimIdle")
-    
-    if swimIdle then
-        for _, anim in ipairs(swimIdle:GetChildren()) do
-            if anim:IsA("Animation") then
-                print("SwimIdle Animation ID:", anim.AnimationId)
-                anim.AnimationId = animations.swimIdle
-                print("Updated SwimIdle Animation ID:", anim.AnimationId)
-            end
-        end
-    else
-        print("swimIdle animation not found in Animate script.")
-    end
-end
-
 -- Run the functions to replace animations, ensure they loop, and debug swimIdle
 replaceAnimations()
 ensureAnimationsLoop()
-debugSwimIdle()
