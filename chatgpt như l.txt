@@ -1,0 +1,142 @@
+-- To hoc tìm ScreenGui  gi sau khi reset
+local screenGui = game.Players.LocalPlayer:FindFirstChild("PlayerGui"):FindFirstChild("GameAssist_GUI")
+if not screenGui then
+    screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "GameAssist_GUI"
+    screenGui.ResetOnSpawn = false  
+    screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+end
+
+-- **To Frame cha nút  kéo**
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 160, 0, 40) -- Gim kích thc nút
+frame.Position = UDim2.new(0.75, 0, 0.05, 0) -- Di chuyn nút qua trái
+frame.BackgroundTransparency = 0.2  -- Tô li màu nn
+frame.BackgroundColor3 = Color3.fromRGB(100, 150, 255) -- Màu xanh dng nht
+frame.Active = true
+frame.Draggable = true -- Cho phép kéo
+frame.Parent = screenGui
+
+-- **To nút Shoot Murder (Góc tròn)**
+local shootButton = Instance.new("TextButton")
+shootButton.Size = UDim2.new(1, 0, 1, 0)
+shootButton.Position = UDim2.new(0, 0, 0, 0)
+shootButton.Text = "Bn Murderer"
+shootButton.TextColor3 = Color3.fromRGB(255, 255, 255)  -- Ch màu trng
+shootButton.Font = Enum.Font.GothamBold
+shootButton.TextSize = 18
+shootButton.BackgroundTransparency = 1  -- Nn trong sut
+shootButton.Parent = frame
+
+-- **To vin cho nút**
+local uiStroke = Instance.new("UIStroke", frame)
+uiStroke.Thickness = 3  --  dày vin
+uiStroke.Color = Color3.fromRGB(0, 100, 255)  -- Vin xanh dng
+uiStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+-- **To góc bo tròn**
+local uiCorner = Instance.new("UICorner", frame)
+uiCorner.CornerRadius = UDim.new(1, 0)
+
+-- **Hàm thông báo**
+local function sendNotification(title, text, duration)
+    game.StarterGui:SetCore("SendNotification", {
+        Title = title,
+        Text = text,
+        Duration = duration or 3
+    })
+end
+
+-- **Tìm Murderer**
+local function findMurderer()
+    for _, player in ipairs(game.Players:GetPlayers()) do
+        if player.Backpack:FindFirstChild("Knife") or (player.Character and player.Character:FindFirstChild("Knife")) then
+            return player
+        end
+    end
+    return nil
+end
+
+-- **Tìm Sheriff hoc Hero**
+local function isSheriffOrHero(player)
+    return player.Backpack:FindFirstChild("Gun") or (player.Character and player.Character:FindFirstChild("Gun"))
+end
+
+-- **Ly Ping Hin Ti**
+local function getPing()
+    return game.Stats.PerformanceStats.Ping:GetValue() / 1000  -- Chia 1000  chuyn t ms sang giây
+end
+
+-- **D oán v trí Murderer theo Ping**
+local function predictMurdererPosition(murderer)
+    if not murderer or not murderer.Character then return nil end
+
+    local hrp = murderer.Character:FindFirstChild("HumanoidRootPart")
+    local humanoid = murderer.Character:FindFirstChild("Humanoid")
+    if not hrp or not humanoid then return nil end
+
+    local velocity = hrp.Velocity  
+    local moveDir = humanoid.MoveDirection  
+    local ping = getPing()  
+
+    -- iu chnh d oán theo ping: Ping chun = 100ms
+    local basePing = 0.1  -- 100ms
+    local predictionFactor = math.clamp(ping / basePing, 0.5, 3)  
+
+    -- Xác nh hng di chuyn và ri ca Murderer
+    local yOffset = 0
+    if humanoid:GetState() == Enum.HumanoidStateType.Jumping then
+        yOffset = humanoid.JumpPower * 0.25 * predictionFactor
+    elseif humanoid:GetState() == Enum.HumanoidStateType.Freefall then
+        yOffset = -humanoid.JumpPower * 0.15 * predictionFactor
+    end
+
+    return hrp.Position + (velocity * ping * predictionFactor) + (moveDir * 3 * predictionFactor) + Vector3.new(0, yOffset, 0)
+end
+
+-- **Shoot Murder (T ng cm súng + D oán theo Ping)**
+local function shootMurderer()
+    local localPlayer = game.Players.LocalPlayer
+    local murderer = findMurderer()
+
+    if not isSheriffOrHero(localPlayer) then
+        sendNotification("Li", "Bn không phi Sheriff hoc Hero!", 3)
+        return
+    end
+
+    if not murderer or not murderer.Character or not murderer.Character:FindFirstChild("HumanoidRootPart") then 
+        sendNotification("Cnh báo", "Không tìm thy Murderer!", 3)
+        return
+    end
+
+    local predictedPosition = predictMurdererPosition(murderer)
+    if not predictedPosition then 
+        sendNotification("Li", "Không th xác nh v trí Murderer.", 3)
+        return
+    end
+
+    -- **T ng cm súng trc khi bn**
+    local gun = localPlayer.Backpack:FindFirstChild("Gun") or localPlayer.Character:FindFirstChild("Gun")
+    if gun then
+        gun.Parent = localPlayer.Character -- Trang b súng
+        task.wait(0.1) -- Ch mt chút trc khi bn
+    else
+        sendNotification("Li", "Không tìm thy súng!", 3)
+        return
+    end
+
+    -- **Bn Murderer bng RemoteFunction**
+    if gun:FindFirstChild("KnifeLocal") and gun.KnifeLocal:FindFirstChild("CreateBeam") and gun.KnifeLocal.CreateBeam:FindFirstChild("RemoteFunction") then
+        gun.KnifeLocal.CreateBeam.RemoteFunction:InvokeServer(predictedPosition)
+    else
+        sendNotification("Li", "Không th bn Murderer!", 3)
+    end
+end
+
+-- **Gán chc nng bn cho nút**
+shootButton.MouseButton1Click:Connect(shootMurderer)
+
+-- **m bo GUI vn hin th sau khi cht**
+game.Players.LocalPlayer.CharacterAdded:Connect(function()
+    screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+end)
