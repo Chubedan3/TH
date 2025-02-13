@@ -1,7 +1,7 @@
 return {
-    BanVinhVien = {chua_co, chua_co}, -- Danh sách ID bị ban vĩnh viễn
+    BanVinhVien = {123456789, 987654321}, -- Danh sách ID bị ban vĩnh viễn
     BanTamThoi = {
-        [chua_co] = os.time() + (24 * 60 * 60), -- Ban 1 ngày
-        [chua_co] = os.time() + (24 * 60 * 60)
+        [1122334455] = os.time() + (24 * 60 * 60), -- Ban 1 ngày
+        [6677889900] = os.time() + (24 * 60 * 60)
     }
 }
