@@ -7,36 +7,17 @@ if not screenGui then
     screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 end
 
+-- Xóa các nút cũ nếu có
+for _, v in ipairs(screenGui:GetChildren()) do
+    if v:IsA("TextButton") then v:Destroy() end
+end
+
 -- **Tạo Frame chứa nút để kéo**
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 160, 0, 40) -- Giảm kích thước nút
-frame.Position = UDim2.new(0.75, 0, 0.05, 0) -- Di chuyển nút qua trái
-frame.BackgroundTransparency = 0.2  -- Tô lại màu nền
-frame.BackgroundColor3 = Color3.fromRGB(100, 150, 255) -- Màu xanh dương nhạt
-frame.Active = true
-frame.Draggable = true -- Cho phép kéo
+frame.Size = UDim2.new(0, 220, 0, 70)
+frame.Position = UDim2.new(1, -250, 0.05, 0)
+frame.BackgroundTransparency = 1
 frame.Parent = screenGui
-
--- **Tạo nút Shoot Murder (Góc tròn)**
-local shootButton = Instance.new("TextButton")
-shootButton.Size = UDim2.new(1, 0, 1, 0)
-shootButton.Position = UDim2.new(0, 0, 0, 0)
-shootButton.Text = "Bắn Murderer"
-shootButton.TextColor3 = Color3.fromRGB(255, 255, 255)  -- Chữ màu trắng
-shootButton.Font = Enum.Font.GothamBold
-shootButton.TextSize = 18
-shootButton.BackgroundTransparency = 1  -- Nền trong suốt
-shootButton.Parent = frame
-
--- **Tạo viền cho nút**
-local uiStroke = Instance.new("UIStroke", frame)
-uiStroke.Thickness = 3  -- Độ dày viền
-uiStroke.Color = Color3.fromRGB(0, 100, 255)  -- Viền xanh dương
-uiStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
--- **Tạo góc bo tròn**
-local uiCorner = Instance.new("UICorner", frame)
-uiCorner.CornerRadius = UDim.new(1, 0)
 
 -- **Hàm thông báo**
 local function sendNotification(title, text, duration)
@@ -94,7 +75,7 @@ local function predictMurdererPosition(murderer)
     return hrp.Position + (velocity * ping * predictionFactor) + (moveDir * 3 * predictionFactor) + Vector3.new(0, yOffset, 0)
 end
 
--- **Shoot Murder (Tự động cầm súng + Dự đoán theo Ping)**
+-- **Shoot Murder (Dự đoán theo Ping)**
 local function shootMurderer()
     local localPlayer = game.Players.LocalPlayer
     local murderer = findMurderer()
@@ -115,26 +96,44 @@ local function shootMurderer()
         return
     end
 
-    -- **Tự động cầm súng trước khi bắn**
-    local gun = localPlayer.Backpack:FindFirstChild("Gun") or localPlayer.Character:FindFirstChild("Gun")
-    if gun then
-        gun.Parent = localPlayer.Character -- Trang bị súng
-        task.wait(0.1) -- Chờ một chút trước khi bắn
-    else
-        sendNotification("Lỗi", "Không tìm thấy súng!", 3)
-        return
-    end
-
-    -- **Bắn Murderer bằng RemoteFunction**
-    if gun:FindFirstChild("KnifeLocal") and gun.KnifeLocal:FindFirstChild("CreateBeam") and gun.KnifeLocal.CreateBeam:FindFirstChild("RemoteFunction") then
-        gun.KnifeLocal.CreateBeam.RemoteFunction:InvokeServer(predictedPosition)
-    else
-        sendNotification("Lỗi", "Không thể bắn Murderer!", 3)
-    end
+    game.ReplicatedStorage.Remotes.ShootMurderer:FireServer(predictedPosition)
 end
 
--- **Gán chức năng bắn cho nút**
+-- **Tạo nút Shoot Murder (Có thể kéo)**
+local shootButton = Instance.new("TextButton")
+shootButton.Size = UDim2.new(0, 200, 0, 50)
+shootButton.Position = UDim2.new(0, 10, 0, 10)
+shootButton.Text = "Bắn Murderer"
+shootButton.BackgroundColor3 = Color3.fromRGB(0, 100, 255)
+shootButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+shootButton.Font = Enum.Font.GothamBold
+shootButton.TextSize = 18
+shootButton.Parent = frame
 shootButton.MouseButton1Click:Connect(shootMurderer)
+
+-- **Tạo chức năng kéo nút**
+local dragging = false
+local dragInput, startPos, dragStart
+
+shootButton.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+shootButton.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
 
 -- **Đảm bảo GUI vẫn hiển thị sau khi chết**
 game.Players.LocalPlayer.CharacterAdded:Connect(function()
